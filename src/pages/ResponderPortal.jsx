@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, Crosshair, Users, Activity, Radio } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Shield, AlertTriangle, Crosshair, Users, Activity, Radio, LayoutDashboard, Search, Target } from 'lucide-react';
 import { socket } from '../socket';
 
 // Re-using same zones
@@ -14,8 +15,48 @@ const ZONES = [
 ];
 
 export default function ResponderPortal() {
+  const navigate = useNavigate();
   const [incidents, setIncidents] = useState([]);
   const [guests, setGuests] = useState([]);
+  const [musterPoints, setMusterPoints] = useState([]);
+  const [safetyTime, setSafetyTime] = useState(300);
+  const [safetyAlert, setSafetyAlert] = useState(false);
+  const [responderStatus, setResponderStatus] = useState({});
+  const [currentZone, setCurrentZone] = useState('');
+
+  useEffect(() => {
+    if (!currentZone) return;
+    const timer = setInterval(() => {
+      setSafetyTime(prev => {
+        if (prev === 1) {
+          setSafetyAlert(true);
+          fetch('http://localhost:3000/api/incidents', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: `RESPONDER SAFETY ALERT`,
+              description: `Automated safety check-in missed by responder in ${currentZone}. Status unknown. Immediate support required.`,
+              zone: currentZone.replace(' ZONE', ''),
+            })
+          });
+          return 0;
+        }
+        if (prev <= 0) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [currentZone]);
+
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
+  const handleAction = (guestId, action) => {
+    setResponderStatus(prev => ({ ...prev, [guestId]: action }));
+  };
 
   useEffect(() => {
     // Fetch initial data
@@ -26,6 +67,10 @@ export default function ResponderPortal() {
     fetch('http://localhost:3000/api/guests')
       .then(res => res.json())
       .then(data => setGuests(data));
+
+    fetch('http://localhost:3000/api/muster')
+      .then(res => res.json())
+      .then(data => setMusterPoints(data));
 
     // Socket listeners
     const handleIncidentUpdate = (updatedIncident) => {
@@ -49,10 +94,14 @@ export default function ResponderPortal() {
 
     socket.on('incident_update', handleIncidentUpdate);
     socket.on('guest_update', handleGuestUpdate);
+    socket.on('muster_update', () => {
+      fetch('http://localhost:3000/api/muster').then(r => r.json()).then(setMusterPoints);
+    });
 
     return () => {
       socket.off('incident_update', handleIncidentUpdate);
       socket.off('guest_update', handleGuestUpdate);
+      socket.off('muster_update');
     };
   }, []);
 
@@ -61,6 +110,14 @@ export default function ResponderPortal() {
 
   return (
     <div className="command-center" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <nav className="nav-tabs" style={{ justifyContent: 'flex-start', padding: '1rem', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border-subtle)', marginBottom: '0' }}>
+        <button className="nav-tab" onClick={() => navigate('/')}><LayoutDashboard size={16} /> Dashboard</button>
+        <button className="nav-tab" onClick={() => navigate('/')}><AlertTriangle size={16} /> Report Incident</button>
+        <button className="nav-tab active" onClick={() => navigate('/responder')}><Users size={16} /> Responders</button>
+        <button className="nav-tab" onClick={() => navigate('/guest')}><Search size={16} /> Guest Portal</button>
+        <button className="nav-tab" onClick={() => navigate('/muster')}><Target size={16} /> Muster Station</button>
+      </nav>
+
       <header className="top-header" style={{ marginBottom: '0' }}>
         <div className="brand-section">
           <div className="brand-icon-box" style={{ background: 'rgba(0, 240, 255, 0.15)', borderColor: 'rgba(0, 240, 255, 0.5)', color: 'var(--accent-cyan)', boxShadow: 'var(--glow-cyan)' }}>
@@ -71,7 +128,36 @@ export default function ResponderPortal() {
             <div className="brand-subtitle" style={{ color: '#fff', textShadow: 'none' }}>TACTICAL DISPATCH OVERRIDE</div>
           </div>
         </div>
-        <div className="system-status">
+        <div className="system-status" style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: safetyAlert ? 'rgba(255,0,60,0.2)' : 'rgba(255,255,255,0.05)', border: `1px solid ${safetyAlert ? 'var(--accent-red)' : 'rgba(255,255,255,0.1)'}`, padding: '0.5rem 1rem', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+              <select 
+                value={currentZone} 
+                onChange={(e) => {
+                  setCurrentZone(e.target.value);
+                  setSafetyTime(300);
+                  setSafetyAlert(false);
+                }}
+                style={{ background: 'rgba(0,0,0,0.5)', color: '#fff', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px 4px', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}
+              >
+                <option value="">-- SELECT LOCATION --</option>
+                {ZONES.map(z => <option key={z.id} value={z.id}>{z.id}</option>)}
+              </select>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '1px', fontFamily: 'var(--font-mono)', textAlign: 'right' }}>Safety Check-in</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', color: safetyAlert ? 'var(--accent-red)' : (!currentZone ? 'var(--text-muted)' : '#fff'), fontWeight: 'bold', animation: safetyAlert ? 'pulseThreat 1s infinite' : 'none' }}>
+                {currentZone ? formatTime(safetyTime) : '--:--'}
+              </div>
+            </div>
+            <button 
+              disabled={!currentZone}
+              onClick={() => { setSafetyTime(300); setSafetyAlert(false); }}
+              style={{ background: currentZone ? 'var(--accent-green)' : 'rgba(255,255,255,0.1)', color: currentZone ? '#000' : 'var(--text-muted)', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', fontWeight: 'bold', cursor: currentZone ? 'pointer' : 'not-allowed', textShadow: 'none' }}>
+              CHECK IN
+            </button>
+          </div>
+
           <div style={{ display: 'flex', gap: '2rem' }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', color: 'var(--accent-red)', textShadow: 'var(--glow-red)', fontWeight: 'bold', lineHeight: 1 }}>{trappedGuests.length}</div>
@@ -85,7 +171,7 @@ export default function ResponderPortal() {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '1.5rem', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px 350px', gap: '1.5rem', flex: 1, minHeight: 0 }}>
         {/* Tactical Map */}
         <div className="panel map-panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '1rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
@@ -100,7 +186,7 @@ export default function ResponderPortal() {
               {incidents.map(inc => (
                 <div key={inc.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', color: 'var(--accent-red)', textShadow: '0 0 5px rgba(255,0,60,0.5)' }}>
                   <AlertTriangle size={14} />
-                  <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>{inc.zone.split(' ')[0]}: {inc.category.toUpperCase()}</span>
+                  <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)' }}>{inc.zone.split(' ')[0]}: {(inc.category || 'ANALYZING').toUpperCase()}</span>
                 </div>
               ))}
               {incidents.length === 0 && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>No active threats detected</div>}
@@ -145,6 +231,44 @@ export default function ResponderPortal() {
           </div>
         </div>
 
+        {/* Muster Recon Panel */}
+        <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '1rem' }}>
+          <div className="panel-header" style={{ marginBottom: '1rem' }}>
+            <div className="panel-title" style={{ color: 'var(--accent-yellow)' }}>MUSTER RECON</div>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {ZONES.map(zone => {
+              const pt = musterPoints.find(p => p.zone === zone.id);
+              const safeAppGuests = safeGuests.filter(g => g.zone === zone.id).length;
+              const accounted = (pt?.current_count || 0) + safeAppGuests;
+              
+              // Fake expected counts for demo realism
+              const expected = zone.id.includes('BALLROOM') ? 300 : zone.id.includes('LOBBY') ? 150 : 50;
+              const missing = expected - accounted;
+              const isMissing = missing > 0;
+
+              return (
+                <div key={zone.id} style={{ background: 'rgba(255,255,255,0.05)', padding: '1rem', borderRadius: 'var(--radius-sm)', borderLeft: `3px solid ${isMissing ? 'var(--accent-yellow)' : 'var(--accent-green)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{zone.id.split(' ')[0]}</strong>
+                    <span style={{ fontSize: '0.8rem', color: isMissing ? 'var(--accent-yellow)' : 'var(--accent-green)', fontWeight: 'bold' }}>
+                      {accounted} / {expected}
+                    </span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px', width: '100%' }}>
+                    <div style={{ height: '100%', borderRadius: '2px', background: isMissing ? 'var(--accent-yellow)' : 'var(--accent-green)', width: `${Math.min(100, (accounted / expected) * 100)}%` }} />
+                  </div>
+                  {isMissing && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--accent-red)' }}>
+                      {missing} Unaccounted
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Triage Communications Feed */}
         <div className="panel" style={{ height: '100%', display: 'flex', flexDirection: 'column', padding: '1rem' }}>
           <div className="panel-header" style={{ marginBottom: '1rem' }}>
@@ -158,9 +282,19 @@ export default function ResponderPortal() {
                   <strong style={{ color: '#fff', fontSize: '1.1rem', textShadow: '0 0 5px rgba(255,255,255,0.3)' }}>{g.name.toUpperCase()}</strong>
                   <span style={{ fontSize: '0.75rem', color: 'var(--accent-cyan)', fontFamily: 'var(--font-mono)', background: 'rgba(0,240,255,0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', border: '1px solid var(--accent-cyan)' }}>{g.zone.split(' ')[0]}</span>
                 </div>
+                
+                {g.is_injured ? (
+                  <div style={{ marginBottom: '0.75rem', background: 'rgba(255, 0, 60, 0.2)', color: '#fff', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.85rem', border: '1px solid var(--accent-red)', display: 'inline-block' }}>
+                    <Crosshair size={12} style={{ display: 'inline', marginRight: '4px' }}/> MEDICAL ATTENTION REQUIRED
+                  </div>
+                ) : null}
                 {g.translated_message ? (
                   <div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-yellow)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Translated Transcript:</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-yellow)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', marginBottom: '0.25rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span>Translated Transcript</span>
+                      {g.detected_language && <span style={{ color: 'var(--accent-cyan)', background: 'rgba(0, 240, 255, 0.1)', padding: '0 4px', borderRadius: '2px' }}>{g.detected_language}</span>}
+                      {g.detected_category && <span style={{ color: 'var(--accent-red)', background: 'rgba(255, 0, 60, 0.1)', padding: '0 4px', borderRadius: '2px' }}>{g.detected_category.toUpperCase()}</span>}
+                    </div>
                     <p style={{ fontSize: '0.95rem', color: '#e2e8f0', lineHeight: 1.5, background: 'rgba(0,0,0,0.5)', padding: '0.75rem', borderRadius: 'var(--radius-sm)' }}>"{g.translated_message}"</p>
                     {g.original_message !== g.translated_message && (
                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem', fontStyle: 'italic' }}>Original: "{g.original_message}"</p>
@@ -171,9 +305,22 @@ export default function ResponderPortal() {
                     <AlertTriangle size={14} /> TRAPPED. NO MESSAGE.
                   </div>
                 )}
-                <div style={{ marginTop: '1rem', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ marginTop: '1rem', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>PRIORITY: {g.priority_level.toUpperCase()}</span>
-                  <span>{new Date(g.created_at).toLocaleTimeString()}</span>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {responderStatus[g.id] === 'arrived' ? (
+                       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                         <span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>ON SCENE</span>
+                         <button onClick={() => {
+                           fetch(`http://localhost:3000/api/guests/${g.id}/safe`, { method: 'PATCH' });
+                         }} style={{ background: 'transparent', color: '#fff', border: '1px solid #fff', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>MARK SAFE</button>
+                       </div>
+                    ) : responderStatus[g.id] === 'en_route' ? (
+                       <button onClick={() => handleAction(g.id, 'arrived')} style={{ background: 'rgba(0, 255, 102, 0.2)', color: 'var(--accent-green)', border: '1px solid var(--accent-green)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>MARK ARRIVED</button>
+                    ) : (
+                       <button onClick={() => handleAction(g.id, 'en_route')} style={{ background: 'rgba(0, 240, 255, 0.2)', color: 'var(--accent-cyan)', border: '1px solid var(--accent-cyan)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>SET ETA 2 MIN</button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
