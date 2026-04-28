@@ -41,7 +41,7 @@ export default function GuestView() {
     const formName = document.querySelector('[name="name"]').value;
     const formMessage = document.querySelector('[name="message"]').value;
     
-    fetch('http://localhost:3000/api/guests', {
+    fetch('/api/guests', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

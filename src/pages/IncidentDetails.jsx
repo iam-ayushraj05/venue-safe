@@ -10,7 +10,7 @@ export default function IncidentDetails() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/incidents/${id}`)
+    fetch(`/api/incidents/${id}`)
       .then(res => res.json())
       .then(data => {
         setIncident(data);
@@ -35,7 +35,7 @@ export default function IncidentDetails() {
   }, [id]);
 
   const resolveIncident = () => {
-    fetch(`http://localhost:3000/api/incidents/${id}/resolve`, {
+    fetch(`/api/incidents/${id}/resolve`, {
       method: 'PATCH'
     });
   };

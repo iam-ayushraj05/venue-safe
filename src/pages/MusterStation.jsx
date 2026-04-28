@@ -27,7 +27,7 @@ export default function MusterStation() {
     e.preventDefault();
     if (!guestName) return;
 
-    fetch('http://localhost:3000/api/muster/checkin', {
+    fetch('/api/muster/checkin', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

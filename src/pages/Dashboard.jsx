@@ -67,15 +67,15 @@ export default function Dashboard() {
 
   // 2. Initial Data Fetch
   useEffect(() => {
-    fetch('http://localhost:3000/api/incidents')
+    fetch('/api/incidents')
       .then(res => res.json())
       .then(data => setIncidents(data.filter(i => i.status !== 'resolved')));
 
-    fetch('http://localhost:3000/api/guests')
+    fetch('/api/guests')
       .then(res => res.json())
       .then(data => setGuests(data));
 
-    fetch('http://localhost:3000/api/muster')
+    fetch('/api/muster')
       .then(res => res.json())
       .then(data => setMusterPoints(data));
   }, []);
@@ -123,7 +123,7 @@ export default function Dashboard() {
     socket.on('guest_update', handleGuestUpdate);
     socket.on('pattern_detected', data => setPatternSuggestion(data.suggestion));
     socket.on('muster_update', () => {
-      fetch('http://localhost:3000/api/muster').then(r => r.json()).then(setMusterPoints);
+      fetch('/api/muster').then(r => r.json()).then(setMusterPoints);
     });
     socket.on('severity_alert', data => setSeverityAlert(data));
 
@@ -141,7 +141,7 @@ export default function Dashboard() {
   const triggerTriage = () => {
     if (!triageText || !triageCategory) return;
     setIsTriaging(true);
-    fetch('http://localhost:3000/api/incidents', {
+    fetch('/api/incidents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -156,7 +156,7 @@ export default function Dashboard() {
   };
 
   const triggerLockdown = () => {
-    fetch('http://localhost:3000/api/incidents', {
+    fetch('/api/incidents', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -175,7 +175,7 @@ export default function Dashboard() {
       const expected = zone.id.includes('BALLROOM') ? 300 : zone.id.includes('LOBBY') ? 150 : 50;
       const missing = expected - accounted;
       if (missing > 0) {
-        fetch('http://localhost:3000/api/incidents', {
+        fetch('/api/incidents', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -394,7 +394,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button 
                     onClick={() => {
-                      fetch('http://localhost:3000/api/incidents', {
+                      fetch('/api/incidents', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title: `SMOKE DETECTOR ALARM`, description: `Automated sensor trigger. Smoke detected in ${selectedMapZone.id}.`, zone: selectedMapZone.id.replace(' ZONE', ''), is_sensor: true })
@@ -405,7 +405,7 @@ export default function Dashboard() {
                   </button>
                   <button 
                     onClick={() => {
-                      fetch('http://localhost:3000/api/incidents', {
+                      fetch('/api/incidents', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title: `GLASS BREAK SENSOR`, description: `Audio sensor detected glass breaking in ${selectedMapZone.id}.`, zone: selectedMapZone.id.replace(' ZONE', ''), is_sensor: true })
@@ -416,7 +416,7 @@ export default function Dashboard() {
                   </button>
                   <button 
                     onClick={() => {
-                      fetch('http://localhost:3000/api/incidents', {
+                      fetch('/api/incidents', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ title: `CROWD LEVEL WARNING`, description: `Microphone arrays detect anomalous crowd volume in ${selectedMapZone.id}.`, zone: selectedMapZone.id.replace(' ZONE', ''), is_sensor: true })
@@ -475,7 +475,7 @@ export default function Dashboard() {
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    fetch(`http://localhost:3000/api/incidents/${inc.id}/resolve`, { method: 'PATCH' });
+                    fetch(`/api/incidents/${inc.id}/resolve`, { method: 'PATCH' });
                   }}
                   style={{ position: 'absolute', top: '50%', right: '1rem', transform: 'translateY(-50%)', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--accent-green)', border: '1px solid var(--accent-green)', borderRadius: '4px', padding: '4px 8px', fontSize: '0.65rem', fontWeight: 'bold', cursor: 'pointer', fontFamily: 'var(--font-mono)', transition: 'all 0.2s' }}
                   onMouseOver={(e) => e.target.style.background = 'rgba(16, 185, 129, 0.3)'}
@@ -538,7 +538,7 @@ export default function Dashboard() {
           const phone = document.getElementById('smsPhone').value || '+15550100';
           const msg = document.getElementById('smsMessage').value;
           if (!msg) return;
-          fetch('http://localhost:3000/api/sms-webhook', {
+          fetch('/api/sms-webhook', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ From: phone, Body: msg })
@@ -577,7 +577,7 @@ export default function Dashboard() {
               </div>
               <button 
                 onClick={() => {
-                  fetch(`http://localhost:3000/api/incidents/${selectedIncident.id}/resolve`, { method: 'PATCH' });
+                  fetch(`/api/incidents/${selectedIncident.id}/resolve`, { method: 'PATCH' });
                 }}
                 style={{ padding: '0.75rem 1.25rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-green)', border: '1px solid var(--accent-green)', borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', textTransform: 'uppercase', boxShadow: 'var(--glow-green)' }}
               >

@@ -15,7 +15,7 @@ export default function VenueMap() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch('http://localhost:3000/api/incidents')
+    fetch('/api/incidents')
       .then(res => res.json())
       .then(data => setIncidents(data.filter(i => i.status !== 'resolved')))
       .catch(err => console.error('Error fetching incidents:', err));

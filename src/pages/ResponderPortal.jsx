@@ -33,7 +33,7 @@ export default function ResponderPortal() {
       setSafetyTime(prev => {
         if (prev === 1) {
           setSafetyAlert(true);
-          fetch('http://localhost:3000/api/incidents', {
+          fetch('/api/incidents', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -63,15 +63,15 @@ export default function ResponderPortal() {
 
   useEffect(() => {
     // Fetch initial data
-    fetch('http://localhost:3000/api/incidents')
+    fetch('/api/incidents')
       .then(res => res.json())
       .then(data => setIncidents(data.filter(i => i.status !== 'resolved')));
 
-    fetch('http://localhost:3000/api/guests')
+    fetch('/api/guests')
       .then(res => res.json())
       .then(data => setGuests(data));
 
-    fetch('http://localhost:3000/api/muster')
+    fetch('/api/muster')
       .then(res => res.json())
       .then(data => setMusterPoints(data));
 
@@ -98,7 +98,7 @@ export default function ResponderPortal() {
     socket.on('incident_update', handleIncidentUpdate);
     socket.on('guest_update', handleGuestUpdate);
     socket.on('muster_update', () => {
-      fetch('http://localhost:3000/api/muster').then(r => r.json()).then(setMusterPoints);
+      fetch('/api/muster').then(r => r.json()).then(setMusterPoints);
     });
 
     return () => {
@@ -312,7 +312,7 @@ export default function ResponderPortal() {
                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                          <span style={{ color: 'var(--accent-green)', fontWeight: 'bold' }}>ON SCENE</span>
                          <button onClick={() => {
-                           fetch(`http://localhost:3000/api/guests/${g.id}/safe`, { method: 'PATCH' });
+                           fetch(`/api/guests/${g.id}/safe`, { method: 'PATCH' });
                          }} style={{ background: 'transparent', color: '#fff', border: '1px solid #fff', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.7rem', fontFamily: 'var(--font-mono)', fontWeight: 'bold' }}>MARK SAFE</button>
                        </div>
                     ) : responderStatus[g.id] === 'en_route' ? (
