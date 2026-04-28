@@ -1,12 +1,36 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.resolve(__dirname, 'venuesafe.db');
+const isCloudRun = !!process.env.K_SERVICE || !!process.env.PORT;
+const sourceDbPath = path.resolve(__dirname, 'venuesafe.db');
+let dbPath = sourceDbPath;
+
+if (isCloudRun) {
+  dbPath = '/tmp/venuesafe.db';
+  if (!fs.existsSync(dbPath)) {
+    try {
+      if (fs.existsSync(sourceDbPath)) {
+        fs.copyFileSync(sourceDbPath, dbPath);
+        console.log('Copied venuesafe.db to /tmp for write access.');
+      }
+    } catch (e) {
+      console.error('Failed to copy database to /tmp:', e);
+    }
+  }
+}
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('Error opening database', err.message);
   } else {
     console.log('Connected to the SQLite database.');
+    
+    // Prevent unhandled error events from crashing the Node process
+    db.on('error', (dbErr) => {
+      console.error('SQLite Global Error:', dbErr.message);
+    });
+
     db.serialize(() => {
       db.run(`CREATE TABLE IF NOT EXISTS incidents (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
