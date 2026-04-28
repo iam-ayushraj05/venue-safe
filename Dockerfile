@@ -1,5 +1,5 @@
 # Use official Node runtime as a parent image
-FROM node:20-slim
+FROM node:20
 
 # Set the working directory
 WORKDIR /usr/src/app
@@ -12,7 +12,7 @@ RUN npm install
 
 # Copy server package files and install server dependencies
 COPY server/package*.json ./server/
-RUN cd server && npm install
+RUN cd server && npm install --omit=dev
 
 # Copy the rest of the application code
 COPY . .

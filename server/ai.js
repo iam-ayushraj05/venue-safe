@@ -1,8 +1,13 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const dotenv = require('dotenv');
 const path = require('path');
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Load .env if present (not available in Cloud Run containers - env vars are set via Dockerfile/Cloud Run config)
+try {
+  const dotenv = require('dotenv');
+  dotenv.config({ path: path.resolve(__dirname, '../.env') });
+} catch (e) {
+  // .env file not found - that's fine in production
+}
 
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
 
